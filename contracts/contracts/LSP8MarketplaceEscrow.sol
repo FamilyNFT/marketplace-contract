@@ -5,7 +5,7 @@
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
-// import {familynft} from "./familynft.sol";
+import {familynft} from "./familynft.sol";
 
 /**
  * @title LSP8MarketplaceEscrow contract
@@ -185,11 +185,10 @@ contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
      */
     function _getMinter(address _LSP8Address, bytes32 _tokenId)
         public
-        pure
+        view
         returns (address)
     {
-        address minter; // THIS NEEDS TO BE SOLVED!
-        return minter;
+        return familynft(_LSP8Address).getMinter(_tokenId);
     }
 
     // PRIVATE SALE-CLOSURE METHODS
@@ -211,7 +210,7 @@ contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
         address tokenMinter = _getMinter(
             trades[Id].LSP8Address,
             trades[Id].tokenId
-        ); // <<<<< still need to do this
+        );
 
         // transfer LSP8 asset to buyer
         _transferLSP8(
