@@ -1,0 +1,12 @@
+node_modules
+.env
+
+# Hardhat-specific files
+hardhat.env
+hardhat.config.js
+
+# Local development
+.rpc-secret
+
+# Build artifacts
+build/
