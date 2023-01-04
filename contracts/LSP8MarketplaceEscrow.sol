@@ -4,7 +4,7 @@
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
-import {familynft} from "./FamilyNft.sol";
+import {FamilyNft} from "./FamilyNft.sol";
 
 /**
  * @title LSP8MarketplaceEscrow contract
