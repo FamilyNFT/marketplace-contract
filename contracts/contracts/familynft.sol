@@ -3,8 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8IdentifiableDigitalAsset.sol";
 
-contract familynft is LSP8IdentifiableDigitalAsset {
-    
+contract FamilyNft is LSP8IdentifiableDigitalAsset {
     uint256 count;
     mapping(bytes32 => string) metadataUri;
     mapping(bytes32 => address) private minter;

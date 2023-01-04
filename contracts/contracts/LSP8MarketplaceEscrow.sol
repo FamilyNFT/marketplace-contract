@@ -1,11 +1,10 @@
 // escrow.sol
 // SPDX-License-Identifier: MIT
 
-// import {myfamilynft} from "https://github.com/FamilyNFT/FamilyHackathon/blob/backend/contracts/contracts/myfamilynft.sol";
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 // import {LSP8Marketplace} from "./LSP8Marketplace.sol";
 import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
-import {familynft} from "./familynft.sol";
+import {familynft} from "./FamilyNft.sol";
 
 /**
  * @title LSP8MarketplaceEscrow contract
@@ -17,7 +16,6 @@ import {familynft} from "./familynft.sol";
 
 pragma solidity ^0.8.0;
 
-// contract LSP8MarketplaceEscrow is LSP8Marketplace, familynft {
 contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
     struct escrowTrade {
         address LSP8Address;
@@ -183,11 +181,10 @@ contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
      *
      * @notice anyone can call this function
      */
-    function _getMinter(address _LSP8Address, bytes32 _tokenId)
-        public
-        view
-        returns (address)
-    {
+    function _getMinter(
+        address _LSP8Address,
+        bytes32 _tokenId
+    ) public view returns (address) {
         return familynft(_LSP8Address).getMinter(_tokenId);
     }
 
