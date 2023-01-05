@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8IdentifiableDigitalAsset.sol";
 
-import "../node_modules/hardhat/console.sol";
+// import "../node_modules/hardhat/console.sol";
 
 contract FamilyNft is LSP8IdentifiableDigitalAsset {
     uint256 count;
@@ -14,7 +14,7 @@ contract FamilyNft is LSP8IdentifiableDigitalAsset {
         LSP8IdentifiableDigitalAsset("FAMILYNFT", "FNFT", msg.sender)
     {}
 
-    function mint(address to, string memory data) public {
+    function mint(address to, string memory data) public onlyOwner {
         bytes32 tokenId = bytes32(count);
         minter[tokenId] = to;
         metadataUri[tokenId] = data;
@@ -34,7 +34,9 @@ contract FamilyNft is LSP8IdentifiableDigitalAsset {
     }
 
     //////// TESTING FUNCTIONS
-    // suggest change count to getTotalSupply() onlyOwner
+
+    // suggest removing 'count' to use inherited 'totalSupply()'
+    // suggest removing 'getCount()'. Can use inherited 'totalSupply()'
     function getCount() public view onlyOwner returns (uint256) {
         return count;
     }
