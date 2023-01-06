@@ -6,7 +6,7 @@ import "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8Id
 // import "../node_modules/hardhat/console.sol";
 
 contract FamilyNft is LSP8IdentifiableDigitalAsset {
-    uint256 count;
+    // uint256 count; // use totalSupply instead
     mapping(bytes32 => address) private minter;
     mapping(bytes32 => string) metadataUri;
 
@@ -15,12 +15,12 @@ contract FamilyNft is LSP8IdentifiableDigitalAsset {
     {}
 
     function mint(address to, string memory data) public onlyOwner {
-        bytes32 tokenId = bytes32(count);
+        bytes32 tokenId = bytes32(totalSupply());
         minter[tokenId] = to;
         metadataUri[tokenId] = data;
         bytes memory metadata = bytes(data);
         _mint(to, tokenId, true, metadata);
-        count += 1;
+        // count += 1;
     }
 
     function getMetadata(bytes32 tokenId) public view returns (string memory) {
@@ -37,7 +37,7 @@ contract FamilyNft is LSP8IdentifiableDigitalAsset {
 
     // suggest removing 'count' to use inherited 'totalSupply()'
     // suggest removing 'getCount()'. Can use inherited 'totalSupply()'
-    function getCount() public view onlyOwner returns (uint256) {
-        return count;
-    }
+    // function getCount() public view onlyOwner returns (uint256) {
+    //     return count;
+    // }
 }
