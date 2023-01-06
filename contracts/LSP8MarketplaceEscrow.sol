@@ -185,7 +185,7 @@ contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
         address _LSP8Address,
         bytes32 _tokenId
     ) public view returns (address) {
-        return familynft(_LSP8Address).getMinter(_tokenId);
+        return FamilyNft(_LSP8Address).getMinter(_tokenId);
     }
 
     // PRIVATE SALE-CLOSURE METHODS
