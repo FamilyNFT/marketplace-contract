@@ -47,6 +47,7 @@ describe('FamilyNft contract', () => {
             const result = await family.getMinter(
                 ethers.utils.hexZeroPad('0x00', 32) // bytes32 tokenId
             )
+            expect(result).to.equal(minter.address)
         })
         it('should revert if tokenId not recognised', async () => {
             await family.mint(minter.address, '')
