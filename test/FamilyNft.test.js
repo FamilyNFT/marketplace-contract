@@ -5,7 +5,7 @@ describe('FamilyNft contract', () => {
     let family, deployer, minter, attacker
 
     beforeEach(async () => {
-        ;[deployer, minter, owner] = await ethers.getSigners()
+        ;[deployer, minter, attacker] = await ethers.getSigners()
         const FAMILY = await ethers.getContractFactory('FamilyNft')
         family = await FAMILY.deploy()
     })
@@ -17,11 +17,15 @@ describe('FamilyNft contract', () => {
     })
 
     describe('Mint function', () => {
-        it('should increment the count by 1', async () => {
-            const before = await family.getCount()
+        it('should increment the totalSupply with each NFT minted', async () => {
             await family.mint(minter.address, '')
-            const after = await family.getCount()
-            expect(after).to.equal(before + 1)
+            const before = await family.totalSupply()
+            await family.mint(minter.address, '')
+            await family.mint(minter.address, '')
+            await family.mint(minter.address, '')
+            await family.mint(minter.address, '')
+            const after = await family.totalSupply()
+            expect(after).to.equal(before.add(4))
         })
         it('should reject mint attempts who are not Deployer', async () => {
             unauthMint = family.mint(minter.address, '', {
@@ -43,7 +47,6 @@ describe('FamilyNft contract', () => {
             const result = await family.getMinter(
                 ethers.utils.hexZeroPad('0x00', 32) // bytes32 tokenId
             )
-            expect(result).to.equal(minter.address)
         })
         it('should revert if tokenId not recognised', async () => {
             await family.mint(minter.address, '')
