@@ -2,8 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-// import {ILSP8IdentifiableDigitalAsset} from "/home/b00ste/Projects/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
+import "../node_modules/hardhat/console.sol";
+
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
+
 import {LSP8MarketplaceOffer} from "./LSP8MarketplaceOffer.sol";
 import {LSP8MarketplacePrice} from "./LSP8MarketplacePrice.sol";
 import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
@@ -46,7 +48,12 @@ contract LSP8Marketplace is
         ownsLSP8(LSP8Address, tokenId)
         LSP8NotOnSale(LSP8Address, tokenId)
     {
-        _addLSP8Sale(LSP8Address, tokenId, allowedOffers); // this authorises 'address(this)' to sell
+        // issue with _addLSP8Sale in LSP8MarketplaceSale who tries to authorise the marketplace to
+        // transfer the LSP8, however only when caller==tokenOwner can do this.
+
+        // Need to authorise the marketplace to transfer the LSP8 before calling _addLSP8Sale / putLSP8onSale
+
+        _addLSP8Sale(LSP8Address, tokenId, allowedOffers);
         _addLYXPrice(LSP8Address, tokenId, LYXAmount);
     }
 
@@ -61,11 +68,10 @@ contract LSP8Marketplace is
      * For information about `_removeLSP8Prices` check the LSP8MArketplacePrice smart contract.
      * For information about `_removeLSP8Offers` check the LSP8MArketplaceOffers smart contract.
      */
-    function removeLSP8FromSale(address LSP8Address, bytes32 tokenId)
-        external
-        ownsLSP8(LSP8Address, tokenId)
-        LSP8OnSale(LSP8Address, tokenId)
-    {
+    function removeLSP8FromSale(
+        address LSP8Address,
+        bytes32 tokenId
+    ) external ownsLSP8(LSP8Address, tokenId) LSP8OnSale(LSP8Address, tokenId) {
         _removeOffers(LSP8Address, tokenId);
         _removeLSP8Prices(LSP8Address, tokenId);
         _removeLSP8Sale(LSP8Address, tokenId);
@@ -105,7 +111,10 @@ contract LSP8Marketplace is
      * For information about `_removeLSP8Offers` method check the LSP8MarketplaceOffer smart contract.
      * For information about `_transferLSP8` method check the LSP8MarketplaceTrade smart contract.
      */
-    function buyLSP8WithLYX(address LSP8Address, bytes32 tokenId)
+    function buyLSP8WithLYX(
+        address LSP8Address,
+        bytes32 tokenId
+    )
         external
         payable
         sendEnoughLYX(LSP8Address, tokenId)

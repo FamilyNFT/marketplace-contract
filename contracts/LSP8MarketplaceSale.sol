@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+// import "../node_modules/hardhat/console.sol";
+
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -141,10 +143,31 @@ contract LSP8MarketplaceSale {
     ) internal {
         _sale[LSP8Address].add(tokenId);
         _allowedOffers[LSP8Address][tokenId] = allowedOffers;
+
+        // original authorizeOperator() call from B00ste.
+        // reverts as caller (this contract) is not the owner of the LSP8.
         ILSP8IdentifiableDigitalAsset(LSP8Address).authorizeOperator(
             address(this),
             tokenId
         );
+
+        // // tried to delegatecall authorizeOperator() to authorize this contract as operator.
+        // // however the delegatecall fails for a reason I cannot pin down yet.
+
+        // ILSP8IdentifiableDigitalAsset Lsp8Contract = ILSP8IdentifiableDigitalAsset(
+        //         LSP8Address
+        //     );
+        // (bool ok, ) = address(Lsp8Contract).delegatecall(
+        //     abi.encodeWithSelector(
+        //         Lsp8Contract.authorizeOperator.selector,
+        //         address(this),
+        //         tokenId
+        //     )
+        // );
+        // require(ok, "Delegate Call failed");
+
+        // // Research suggests a better alternative would be to call authorizeOperator() from the
+        // // LSP8 contract itself. Will look into this over coming days.
     }
 
     /**
@@ -178,11 +201,10 @@ contract LSP8MarketplaceSale {
      * @return An array of allowances. At index 0 is LYX allowance,
      * at index 1 is LSP7 allowance and at index 2 is LSP8 allowance.
      */
-    function _returnOfferAlowance(address LSP8Address, bytes32 tokenId)
-        public
-        view
-        returns (bool[3] memory)
-    {
+    function _returnOfferAlowance(
+        address LSP8Address,
+        bytes32 tokenId
+    ) public view returns (bool[3] memory) {
         return _allowedOffers[LSP8Address][tokenId];
     }
 }
