@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-// import "../node_modules/hardhat/console.sol";
-
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -131,10 +129,7 @@ contract LSP8MarketplaceSale {
      *
      * @notice Once this method is called it adds an `LSP8Address` that
      * points to an array of token ids and adds `tokenId` to that array.
-     * After that it calls the `LSP8Address` smart contract and uses the
-     * `authorizeOperator` method to allow this smart contract to transfer
-     * the LSP8 for the user, if the sale gets matched.
-     * Adds an allowed offers array.
+     * Then it adds the passed allowed offers for that token to an array.
      */
     function _addLSP8Sale(
         address LSP8Address,
@@ -144,30 +139,9 @@ contract LSP8MarketplaceSale {
         _sale[LSP8Address].add(tokenId);
         _allowedOffers[LSP8Address][tokenId] = allowedOffers;
 
-        // original authorizeOperator() call from B00ste.
-        // reverts as caller (this contract) is not the owner of the LSP8.
-        ILSP8IdentifiableDigitalAsset(LSP8Address).authorizeOperator(
-            address(this),
-            tokenId
-        );
-
-        // // tried to delegatecall authorizeOperator() to authorize this contract as operator.
-        // // however the delegatecall fails for a reason I cannot pin down yet.
-
-        // ILSP8IdentifiableDigitalAsset Lsp8Contract = ILSP8IdentifiableDigitalAsset(
-        //         LSP8Address
-        //     );
-        // (bool ok, ) = address(Lsp8Contract).delegatecall(
-        //     abi.encodeWithSelector(
-        //         Lsp8Contract.authorizeOperator.selector,
-        //         address(this),
-        //         tokenId
-        //     )
-        // );
-        // require(ok, "Delegate Call failed");
-
-        // // Research suggests a better alternative would be to call authorizeOperator() from the
-        // // LSP8 contract itself. Will look into this over coming days.
+        // the following call reverts as caller (this contract) is not the owner of the LSP8.
+        // to be deleted
+        // ILSP8IdentifiableDigitalAsset(LSP8Address).authorizeOperator(address(this), tokenId);
     }
 
     /**
