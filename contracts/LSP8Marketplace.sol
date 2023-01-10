@@ -48,11 +48,6 @@ contract LSP8Marketplace is
         ownsLSP8(LSP8Address, tokenId)
         LSP8NotOnSale(LSP8Address, tokenId)
     {
-        // issue with _addLSP8Sale in LSP8MarketplaceSale who tries to authorise the marketplace to
-        // transfer the LSP8, however only when caller==tokenOwner can do this.
-
-        // Need to authorise the marketplace to transfer the LSP8 before calling _addLSP8Sale / putLSP8onSale
-
         _addLSP8Sale(LSP8Address, tokenId, allowedOffers);
         _addLYXPrice(LSP8Address, tokenId, LYXAmount);
     }
