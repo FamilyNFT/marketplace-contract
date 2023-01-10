@@ -17,6 +17,7 @@ describe('FamilyNft contract', () => {
     })
 
     describe('Mint function', () => {
+        let mints = 4
         it('should increment the totalSupply with each NFT minted', async () => {
             await family.mint(minter.address, '')
             const before = await family.totalSupply()
@@ -25,7 +26,7 @@ describe('FamilyNft contract', () => {
             await family.mint(minter.address, '')
             await family.mint(minter.address, '')
             const after = await family.totalSupply()
-            expect(after).to.equal(before.add(4))
+            expect(after).to.equal(before.add(mints))
         })
         it('should reject mint attempts who are not Deployer', async () => {
             unauthMint = family.mint(minter.address, '', {
