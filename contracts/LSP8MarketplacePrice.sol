@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "../node_modules/hardhat/console.sol";
+
 import {ILSP7DigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -175,11 +177,10 @@ contract LSP8MarketplacePrice is LSP8MarketplaceSale {
      *
      * @return The amount of tokens needed to buy the LSP8.
      */
-    function _returnLYXPrice(address LSP8Address, bytes32 tokenId)
-        public
-        view
-        returns (uint256)
-    {
+    function _returnLYXPrice(
+        address LSP8Address,
+        bytes32 tokenId
+    ) public view returns (uint256) {
         return _prices[LSP8Address][tokenId].LYXAmount;
     }
 
@@ -240,11 +241,10 @@ contract LSP8MarketplacePrice is LSP8MarketplaceSale {
      *
      * @return An array of LSP7 addresses and an array of token amounts.
      */
-    function _returnLSP7Prices(address LSP8Address, bytes32 tokenId)
-        public
-        view
-        returns (address[] memory, uint256[] memory)
-    {
+    function _returnLSP7Prices(
+        address LSP8Address,
+        bytes32 tokenId
+    ) public view returns (address[] memory, uint256[] memory) {
         Prices storage _price = _prices[LSP8Address][tokenId];
         uint256[] memory LSP7Amounts;
         for (uint256 i = 0; i < _price.LSP7Addresses.length(); i++) {
