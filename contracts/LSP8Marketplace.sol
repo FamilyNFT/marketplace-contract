@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
+// TODO -- change Force back to false in transfer for integration testing
+
 pragma solidity ^0.8.0;
 
 import "../node_modules/hardhat/console.sol";
@@ -124,6 +126,19 @@ contract LSP8Marketplace is
         _removeLSP8Prices(LSP8Address, tokenId);
         _removeLSP8Sale(LSP8Address, tokenId);
 
+        // // to test normal sale and transfer
+        // _transferLSP8(
+        //     LSP8Address, // LSP8
+        //     LSP8Owner, // owner
+        //     msg.sender, // buyer
+        //     tokenId, // tokenId
+        //     true, // SHOULD BE: false,
+        //     amount
+        // );
+
+        // Consider there may be some aspects of _transfer which perhaps should be revoked
+        // prior to escrow –– however, to counter, _transfer will be called AFTER escrow is set up
+
         // set up escrow
         address escrowAddress = _newEscrowSaleLYX(
             LSP8Address,
@@ -132,10 +147,13 @@ contract LSP8Marketplace is
             LSP8Owner,
             msg.sender
         );
+        console.log("--0--");
 
         // lock in escrow contract
         _transferLSP8(LSP8Address, LSP8Owner, escrowAddress, tokenId, false, 1);
+        console.log("--1--");
         payable(escrowAddress).transfer(amount);
+        console.log("--2--");
     }
 
     //

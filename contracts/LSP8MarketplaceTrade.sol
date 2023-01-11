@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "../node_modules/hardhat/console.sol";
+
 import {ILSP8IdentifiableDigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP8IdentifiableDigitalAsset/ILSP8IdentifiableDigitalAsset.sol";
 import {ILSP7DigitalAsset} from "@lukso/lsp-smart-contracts/contracts/LSP7DigitalAsset/ILSP7DigitalAsset.sol";
 import {LSP8MarketplaceSale} from "./LSP8MarketplaceSale.sol";

@@ -17,6 +17,14 @@ contract LSP8MarketplaceSale {
 
     mapping(address => EnumerableSet.Bytes32Set) private _sale;
 
+    // FUNCTION FOR TESTING
+    function isOnSale(
+        address LSP8Address,
+        bytes32 tokenId
+    ) public view returns (bool) {
+        return _sale[LSP8Address].contains(tokenId);
+    }
+
     /**
      * Allows sellers to choose if they want to have LYX, LSP7 or LSP8 offers.
      *
@@ -139,8 +147,8 @@ contract LSP8MarketplaceSale {
         _sale[LSP8Address].add(tokenId);
         _allowedOffers[LSP8Address][tokenId] = allowedOffers;
 
-        // the following call reverts as caller (this contract) is not the owner of the LSP8.
-        // to be deleted
+        // The following call reverts as caller (this contract) is not the owner of the LSP8.
+        // To be deleted
         // ILSP8IdentifiableDigitalAsset(LSP8Address).authorizeOperator(address(this), tokenId);
     }
 
@@ -160,10 +168,11 @@ contract LSP8MarketplaceSale {
     function _removeLSP8Sale(address LSP8Address, bytes32 tokenId) internal {
         _sale[LSP8Address].remove(tokenId);
         delete _allowedOffers[LSP8Address][tokenId];
-        ILSP8IdentifiableDigitalAsset(LSP8Address).revokeOperator(
-            address(this),
-            tokenId
-        );
+
+        // Same applies as above function to authoriseOperator from within Marketplace
+        // The following call reverts as caller (this contract) is not the owner of the LSP8.
+        // To be deleted
+        // ILSP8IdentifiableDigitalAsset(LSP8Address).revokeOperator(address(this), tokenId);
     }
 
     /**
