@@ -1,7 +1,7 @@
 const { expect } = require('chai')
 const { ethers } = require('hardhat')
 
-describe('FamilyNft contract', () => {
+describe('Deploying FamilyNft and Marketplace contracts', () => {
     let family, deployer, minter, attacker
 
     beforeEach(async () => {
