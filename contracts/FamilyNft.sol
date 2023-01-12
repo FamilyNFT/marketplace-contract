@@ -29,3 +29,8 @@ contract FamilyNft is LSP8IdentifiableDigitalAsset {
         return minter[tokenId];
     }
 }
+
+// interface for Marketplace to retrieve minter
+interface IFamilyNft {
+    function getMinter(bytes32 tokenId) external view returns (address);
+}
