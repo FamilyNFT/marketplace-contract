@@ -49,6 +49,24 @@ describe('LSP8 before listing, Authorise Marketplace and test putLSP8OnSale()', 
         })
     })
 
+    describe('Before LSP8 is on sale...', () => {
+        it('changeLYXPrice should revert', async () => {
+            // console.log(
+            //     '--token on sale?',
+            //     await marketplace.isOnSale(family.address, tokenId)
+            // )
+            const NEW_PRICE = 200
+            await expect(
+                marketplace
+                    // await marketplace
+                    .connect(owner)
+                    .changeLYXPrice(family.address, tokenId, NEW_PRICE)
+            ).to.be.revertedWith('LSP8 is not on sale.')
+            // problem with chai not picking up the revert message which happens as expected
+            // uncomment and use await.marketplace to see the revert message
+        })
+    })
+
     describe('When putting an LSP8 on sale using putLSP8OnSale()', () => {
         it('Should list LSP8 when owner calls', async () => {
             expect(
@@ -77,30 +95,6 @@ describe('LSP8 before listing, Authorise Marketplace and test putLSP8OnSale()', 
                 tokenId
             )
             expect(acceptedOffers).to.eql(LYX_ONLY)
-        })
-    })
-
-    describe('Before putting an LSP8 on sale...', () => {
-        it('Should revert if changeLYXPrice is called', async () => {
-            console.log(
-                'token on sale: ',
-                await marketplace.isOnSale(family.address, tokenId)
-            )
-
-            const NEW_PRICE = 200
-            await expect(
-                marketplace
-                    // await marketplace
-                    .connect(owner)
-                    .changeLYXPrice(family.address, tokenId, NEW_PRICE)
-            ).to.be.revertedWith('LSP8 is not on sale.')
-            // problem with chai not picking up the revert message which happens as expected
-            // uncomment and use await.marketplace to see the revert message
-
-            console.log(
-                'token on sale yet? ',
-                await marketplace.isOnSale(family.address, tokenId)
-            )
         })
     })
 })

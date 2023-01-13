@@ -61,6 +61,8 @@ describe('LSP8 post-listing, making an offer', () => {
             expect(check).to.eql([false, false])
         })
 
+        // passes when tested alone, fails when following all tests
+        // possibly due to de-listing in previous test (?)
         it('Buyer can purchase by sending enough LYX using buyLSP8WithLYX', async () => {
             const before = await marketplace.isOnSale(family.address, tokenId)
             await marketplace

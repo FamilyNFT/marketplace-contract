@@ -1,10 +1,11 @@
 // escrow.sol
 // SPDX-License-Identifier: MIT
 
-// import {LSP8Marketplace} from "./LSP8Marketplace.sol";
-// import {LSP8Marketplace} from "./LSP8Marketplace.sol";
-import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
-import {FamilyNft} from "./FamilyNft.sol";
+import "../node_modules/hardhat/console.sol";
+
+// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+// import {LSP8MarketplaceTrade} from "./LSP8MarketplaceTrade.sol";
+import {IFamilyNft} from "./FamilyNft.sol";
 
 /**
  * @title LSP8MarketplaceEscrow contract
@@ -16,35 +17,117 @@ import {FamilyNft} from "./FamilyNft.sol";
 
 pragma solidity ^0.8.0;
 
-contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
-    struct escrowTrade {
-        address LSP8Address;
+contract LSP8MarketplaceEscrow {
+    uint256 public escrowBalance;
+    uint256 public totalItems = 0;
+    uint256 public totalConfirmed = 0;
+    uint256 public totalDisputed = 0;
+
+    // address immutable owner;
+
+    mapping(uint256 => EscrowItem) private items; // mapping(uint256 => items) items;
+    mapping(address => EscrowItem[]) private itemsOf;
+    mapping(uint256 => address) public ownerOf;
+    mapping(address => mapping(bytes32 => uint256)) public escrowIdOfToken;
+
+    // ----TESTING FUNCTIONS
+    function _getEscrowItem(
+        uint256 escId
+    ) internal view returns (EscrowItem memory) {
+        return items[escId];
+    }
+
+    function getItemId(uint escId) public view returns (uint256) {
+        return items[escId].escrowId;
+    }
+
+    function getItemIdOfToken(
+        address LSP8,
+        bytes32 tokenId
+    ) public view returns (uint256) {
+        return escrowIdOfToken[LSP8][tokenId];
+    }
+
+    function getBalance() public view returns (uint256) {
+        return escrowBalance;
+    }
+
+    function getTotalItems() public view returns (uint256) {
+        return totalItems;
+    }
+
+    function getBuyerSeller(
+        uint256 escId
+    ) public view returns (address[2] memory) {
+        return [items[escId].buyer, items[escId].seller];
+    }
+
+    function getEscrowStatus(
+        uint256 escId
+    ) public view exists(escId) returns (status) {
+        // ) internal view exists(escId) returns (status) {
+        return items[escId].escrowStatus;
+    }
+
+    function _closeItem(uint256 escId) internal {
+        items[escId].escrowStatus = status.CLOSED;
+    }
+
+    function _removeBalance(uint256 escId) internal {
+        items[escId].amount = 0;
+    }
+
+    struct EscrowItem {
+        address LSP8Collection;
         bytes32 tokenId;
+        address seller;
+        address buyer;
         uint256 amount;
-        address from;
-        address to;
-        status tradeStatus;
-        status bStatus;
-        status sStatus;
+        address OGminter;
+        uint256 timestamp;
+        status escrowStatus;
+        status buyerStatus;
+        status sellerStatus; //  what's the point in this? Surely only buy-side matters?
+        uint256 escrowId; // is this required, or is it given in mapping?
     }
 
     enum status {
-        PENDING,
-        CONFIRMED,
-        CONFLICT,
-        LOST
+        OPEN, // 0, trade is ongoing
+        SUCCESS, // 1, trade can be collected
+        WITHDRAWN, // 2, trade has been withdrawn
+        DISPUTED, // 3, trade is in dispute - set period before assets are withheld
+        CLOSED // 4, trade has been closed
     }
 
-    uint256 count;
-    mapping(uint256 => escrowTrade) trades; // trade objects attached to trades
-    event Log(string func, address sender, uint256 value, bytes data);
-
     fallback() external payable {
-        emit Log("fallback", msg.sender, msg.value, msg.data);
+        // emit Transfer("fallback", msg.sender, msg.value, msg.data); << add back in once data confirmed
     }
 
     receive() external payable {
-        emit Log("receive", msg.sender, msg.value, bytes(""));
+        // emit Transfer("receive", msg.sender, msg.value, bytes("")); << add back in once data confirmed
+    }
+
+    event Transfer(string func, address sender, uint256 value, bytes data); // what data?
+    event Action(string func, address sender, bytes data); // what data?
+
+    modifier exists(uint256 escId) {
+        require(items[escId].timestamp != 0, "Escrow item does not exist.");
+        _;
+    }
+    modifier itemIsOpen(uint256 escId) {
+        require(
+            items[escId].escrowStatus != status.CLOSED,
+            "Escrow item has been closed."
+        );
+        _;
+    }
+    modifier isbuyerOrSeller(uint256 escId) {
+        require(
+            msg.sender == items[escId].buyer ||
+                msg.sender == items[escId].seller,
+            "You are not buyer or seller of this item."
+        );
+        _;
     }
 
     /**
@@ -52,228 +135,101 @@ contract LSP8MarketplaceEscrow is LSP8MarketplaceTrade {
      * Locks LSP8 LYX in escrow until exchange is complete.
      *
      * @param LSP8Address Address of the LSP8 to be transfered.
-     * @param tokenId Token id of the LSP8 to be transferred.
-     * @param amount Sale price of asset.
+     * @param tokenId Token escrowId of the LSP8 to be transferred.
      * @param seller Address of the LSP8 sender (aka from).
      * @param buyer Address of the LSP8 receiver (aka to).
+     * @param amount Sale price of asset.
      *
      * @return address returns address(this) to receive escrowed LSP8 asset
      *
      * @notice this method can only be called once Buyer commits LYX payment
      */
-    function _newEscrowSaleLYX(
+    function _newEscrowItem(
         address LSP8Address,
         bytes32 tokenId,
-        uint256 amount,
         address seller,
-        address buyer
-    ) internal returns (address) {
-        count++;
-        escrowTrade memory _trade = escrowTrade(
-            LSP8Address,
-            tokenId,
-            amount,
-            seller,
-            buyer,
-            status.PENDING,
-            status.PENDING,
-            status.PENDING
-        );
-        trades[count] = _trade;
-        return address(this);
+        address buyer,
+        uint256 amount
+    ) internal returns (uint256) {
+        uint256 itemId = totalItems++;
+
+        EscrowItem storage item = items[itemId];
+
+        item.LSP8Collection = LSP8Address;
+        item.tokenId = tokenId;
+        item.seller = seller;
+        item.buyer = buyer;
+        item.amount = amount;
+        item.OGminter = IFamilyNft(LSP8Address).getMinter(tokenId);
+        item.timestamp = block.timestamp;
+        item.escrowStatus = status.OPEN; // overall esc status
+        item.buyerStatus;
+        item.sellerStatus;
+        item.escrowId = itemId;
+
+        escrowBalance += msg.value;
+        emit Action("ESCROW ITEM CREATED", buyer, ""); // what data?
+        return item.escrowId;
     }
 
-    /**
-     * Called by buyer or seller to report the item as lost.
-     * Checks status of buyer and seller and closes trade accordingly
-     * (or waits for the second responses).
-     *
-     * @dev updated bStatus or sStatus to LOST when called.
-     *
-     * @param Id ID of the trade.
-     *
-     * @notice only seller or buyer of the trade can call this function
-     */
-    function reportLost(uint256 Id) external {
-        require(
-            msg.sender == trades[Id].to || msg.sender == trades[Id].from,
-            "You are not buyer or seller for this trade"
-        );
-        require(
-            trades[Id].tradeStatus == status.PENDING,
-            "Trade has been closed"
-        );
-        // buyer
-        if (msg.sender == trades[Id].to) {
-            trades[Id].bStatus == status.LOST;
-            if (trades[Id].sStatus == status.LOST) {
-                _lostTrade(Id);
-            } else if (trades[Id].sStatus == status.CONFIRMED) {
-                _resolveTrade(Id);
-            }
+    function _reportDeliverySuccess(uint256 escId) internal {
+        if (msg.sender == items[escId].buyer) {
+            items[escId].buyerStatus = status.SUCCESS;
+        } else {
+            items[escId].sellerStatus = status.SUCCESS;
         }
-        // seller
-        if (msg.sender == trades[Id].from) {
-            trades[Id].sStatus == status.LOST;
-            if (trades[Id].bStatus == status.LOST) {
-                _lostTrade(Id);
-            } else if (trades[Id].bStatus == status.CONFIRMED) {
-                _resolveTrade(Id);
-            }
+        // if both agree, updated escrow status
+        if (
+            items[escId].buyerStatus == status.SUCCESS &&
+            items[escId].sellerStatus == status.SUCCESS
+        ) {
+            items[escId].escrowStatus = status.SUCCESS;
         }
     }
 
-    /**
-     * Called by buyer or seller to report the item as confirmed.
-     * Checks status of buyer and seller and closes trade accordingly
-     * (or waits for the second responses).
-     * @dev updated bStatus or sStatus to CONFIRMED when called.
-     *
-     * @param Id ID of the trade.
-     *
-     * @notice only seller or buyer of the trade can call this function.
-     */
-    function reportConfirm(uint256 Id) external {
-        require(
-            msg.sender == trades[Id].to || msg.sender == trades[Id].from,
-            "not buyer or seller for this trade"
-        );
-        require(
-            trades[Id].tradeStatus == status.PENDING,
-            "Trade has been closed"
-        );
-        // buyer
-        if (msg.sender == trades[Id].to) {
-            trades[Id].bStatus == status.CONFIRMED;
-            if (trades[Id].sStatus == status.CONFIRMED) {
-                _confirmTrade(Id);
-            } else if (trades[Id].sStatus == status.LOST) {
-                _resolveTrade(Id);
-            }
+    function _reportDispute(uint256 escId) internal {
+        if (msg.sender == items[escId].buyer) {
+            items[escId].buyerStatus = status.DISPUTED;
+        } else {
+            items[escId].sellerStatus = status.DISPUTED;
         }
-        // seller
-        if (msg.sender == trades[Id].from) {
-            trades[Id].sStatus == status.CONFIRMED;
-            if (trades[Id].bStatus == status.CONFIRMED) {
-                _confirmTrade(Id);
-            } else if (trades[Id].bStatus == status.LOST) {
-                _resolveTrade(Id);
-            }
+        // if at least one disputes, updated escrow status
+        if (
+            items[escId].buyerStatus == status.DISPUTED ||
+            items[escId].sellerStatus == status.DISPUTED
+        ) {
+            items[escId].escrowStatus = status.DISPUTED;
         }
     }
 
-    /**
-     * returns status of trade for a give tradeID
-
-     * @param Id ID of the trade.
-     *
-     * @notice anyone can call this function
-     */
-    function getStatus(uint256 Id) public view returns (status) {
-        return trades[Id].tradeStatus;
+    function _reportWithdrawn(uint256 escId) internal {
+        if (msg.sender == items[escId].buyer) {
+            items[escId].buyerStatus = status.WITHDRAWN;
+        } else {
+            items[escId].sellerStatus = status.WITHDRAWN;
+        }
+        // if both agree, updated escrow status
+        if (
+            items[escId].buyerStatus == status.WITHDRAWN &&
+            items[escId].sellerStatus == status.WITHDRAWN
+        ) {
+            items[escId].escrowStatus = status.WITHDRAWN;
+        }
     }
 
-    /**
-     * returns the Minter of a given LSP8 asset
+    // function _collectLP8LYX(uint256 escId) internal returns (address[]) {}
 
-     * @param _LSP8Address the LSP8 collection.
-     * @param _tokenId the unique token ID.
-     *
-     * @notice anyone can call this function
-     */
-    function _getMinter(
-        address _LSP8Address,
-        bytes32 _tokenId
-    ) public view returns (address) {
-        return FamilyNft(_LSP8Address).getMinter(_tokenId);
-    }
+    // function _returnLP8LYX(uint256 escId) internal returns {address[]}
 
-    // PRIVATE SALE-CLOSURE METHODS
-
-    /**
-     * This function is called when the buyer confirms the trade.
-     * Completes trade by transferring assets to their new respective
-     * owners, transfers royalties & updates Trade state on-chain.
-     *
-     * @param Id ID of the trade.
-     *
-     * @notice only this contract can call this function. For more
-     * information see _transferLS7 and _transferLS8 functions in
-     * LSP8MarketplaceTrade.sol.
-     */
-    function _confirmTrade(uint256 Id) private {
-        uint256 _valueSeller = ((trades[Id].amount) * 90) / 100;
-        uint256 _valueMinter = ((trades[Id].amount) * 10) / 100;
-        address tokenMinter = _getMinter(
-            trades[Id].LSP8Address,
-            trades[Id].tokenId
-        );
-
-        // transfer LSP8 asset to buyer
-        _transferLSP8(
-            trades[Id].LSP8Address,
-            trades[Id].from,
-            trades[Id].to,
-            trades[Id].tokenId,
-            true,
-            1
-        );
-        // transfer LYX to SELLER+MINTER
-        payable(trades[Id].from).transfer(_valueSeller);
-        payable(tokenMinter).transfer(_valueMinter);
-        // updates tradeState
-        trades[Id].tradeStatus = status.CONFIRMED;
-    }
-
-    /**
-     * This function is called when the buyer & seller report the trade
-     * item as lost. Transfers assets back to their respective owners
-     * & updates Trade state on-chain.
-     *
-     * @param Id ID of the trade.
-     *
-     * @notice only this contract can call this function. For more
-     * information see _transferLS7 and _transferLS8 functions in
-     * LSP8MarketplaceTrade.sol.
-     */
-    function _lostTrade(uint256 Id) private {
-        // transfer LS8 asset back to seller
-        _transferLSP8(
-            trades[Id].LSP8Address,
-            address(this),
-            trades[Id].from,
-            trades[Id].tokenId,
-            true,
-            trades[Id].amount
-        );
-        // return LYX to buyer
-        payable(trades[Id].to).transfer(trades[Id].amount);
-        // updates tradeState
-        trades[Id].tradeStatus = status.LOST;
-    }
-
-    // /**
-    //  * This function is called if both parties call a different report
-    //  * function (Confirm/Lost). All assets are transferred to the contract.
-    //  *
-    //  * @param Id ID of the trade.
-    //  *
-    //  * @notice only this contract can call this function. For more
-    //  * information see _transferLS7 and _transferLS8 functions in
-    //  * LSP8MarketplaceTrade.sol.
-    //  */
-    function _resolveTrade(uint256 Id) private {
-        // ESCROW CONTRACT HOLDS ASSETS FOR PURPOSE OF HACKATHON
-
-        // _transferLSP8(
-        //     trades[Id].tokenAddress, // ???
-        //     address(this), // which address should this be?? Marketplace? This contract? Is there an Appeal court?
-        //     admin,
-        //     trades[Id].tokenId,
-        //     true,
-        //     amount
-        // );
-        // WHERE.transfer(trades[Id].amount); // WHERE ARE RESOLVED FUNDS KEPT?
-        trades[Id].tradeStatus = status.CONFLICT;
-    }
+    // function _withholdLP8LYX(uint256 escId) internal returns {}
 }
+
+// interface ILSP8MarketplaceEscrow {
+//     function newEscrowItem(
+//         address _LSP8Address,
+//         bytes32 _tokenId,
+//         address _from,
+//         address _to,
+//         uint256 _amount
+//     ) external returns (address);
+// }
