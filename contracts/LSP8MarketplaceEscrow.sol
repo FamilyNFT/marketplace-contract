@@ -23,8 +23,6 @@ contract LSP8MarketplaceEscrow {
     uint256 public totalConfirmed = 0;
     uint256 public totalDisputed = 0;
 
-    // address immutable owner;
-
     mapping(uint256 => EscrowItem) private items; // mapping(uint256 => items) items;
     mapping(address => EscrowItem[]) private itemsOf;
     mapping(uint256 => address) public ownerOf;
@@ -37,8 +35,9 @@ contract LSP8MarketplaceEscrow {
         return items[escId];
     }
 
-    function getItemId(uint escId) public view returns (uint256) {
-        return items[escId].escrowId;
+    function _closeItemRemoveBalance(uint256 escId) internal {
+        items[escId].escrowStatus = status.CLOSED;
+        items[escId].balance = 0;
     }
 
     function getItemIdOfToken(
@@ -69,12 +68,22 @@ contract LSP8MarketplaceEscrow {
         return items[escId].escrowStatus;
     }
 
-    function _closeItem(uint256 escId) internal {
-        items[escId].escrowStatus = status.CLOSED;
+    function _setUserStatus(
+        uint256 escId,
+        status newStatus
+    ) internal exists(escId) {
+        if (msg.sender == items[escId].buyer) {
+            items[escId].buyerStatus = newStatus;
+        } else if (msg.sender == items[escId].seller) {
+            items[escId].sellerStatus = newStatus;
+        }
     }
 
-    function _removeBalance(uint256 escId) internal {
-        items[escId].amount = 0;
+    function _setEscrowStatus(
+        uint256 escId,
+        status newStatus
+    ) internal exists(escId) {
+        items[escId].escrowStatus = newStatus;
     }
 
     struct EscrowItem {
@@ -82,7 +91,7 @@ contract LSP8MarketplaceEscrow {
         bytes32 tokenId;
         address seller;
         address buyer;
-        uint256 amount;
+        uint256 balance;
         address OGminter;
         uint256 timestamp;
         status escrowStatus;
@@ -159,7 +168,7 @@ contract LSP8MarketplaceEscrow {
         item.tokenId = tokenId;
         item.seller = seller;
         item.buyer = buyer;
-        item.amount = amount;
+        item.balance = amount;
         item.OGminter = IFamilyNft(LSP8Address).getMinter(tokenId);
         item.timestamp = block.timestamp;
         item.escrowStatus = status.OPEN; // overall esc status
@@ -171,65 +180,4 @@ contract LSP8MarketplaceEscrow {
         emit Action("ESCROW ITEM CREATED", buyer, ""); // what data?
         return item.escrowId;
     }
-
-    function _reportDeliverySuccess(uint256 escId) internal {
-        if (msg.sender == items[escId].buyer) {
-            items[escId].buyerStatus = status.SUCCESS;
-        } else {
-            items[escId].sellerStatus = status.SUCCESS;
-        }
-        // if both agree, updated escrow status
-        if (
-            items[escId].buyerStatus == status.SUCCESS &&
-            items[escId].sellerStatus == status.SUCCESS
-        ) {
-            items[escId].escrowStatus = status.SUCCESS;
-        }
-    }
-
-    function _reportDispute(uint256 escId) internal {
-        if (msg.sender == items[escId].buyer) {
-            items[escId].buyerStatus = status.DISPUTED;
-        } else {
-            items[escId].sellerStatus = status.DISPUTED;
-        }
-        // if at least one disputes, updated escrow status
-        if (
-            items[escId].buyerStatus == status.DISPUTED ||
-            items[escId].sellerStatus == status.DISPUTED
-        ) {
-            items[escId].escrowStatus = status.DISPUTED;
-        }
-    }
-
-    function _reportWithdrawn(uint256 escId) internal {
-        if (msg.sender == items[escId].buyer) {
-            items[escId].buyerStatus = status.WITHDRAWN;
-        } else {
-            items[escId].sellerStatus = status.WITHDRAWN;
-        }
-        // if both agree, updated escrow status
-        if (
-            items[escId].buyerStatus == status.WITHDRAWN &&
-            items[escId].sellerStatus == status.WITHDRAWN
-        ) {
-            items[escId].escrowStatus = status.WITHDRAWN;
-        }
-    }
-
-    // function _collectLP8LYX(uint256 escId) internal returns (address[]) {}
-
-    // function _returnLP8LYX(uint256 escId) internal returns {address[]}
-
-    // function _withholdLP8LYX(uint256 escId) internal returns {}
 }
-
-// interface ILSP8MarketplaceEscrow {
-//     function newEscrowItem(
-//         address _LSP8Address,
-//         bytes32 _tokenId,
-//         address _from,
-//         address _to,
-//         uint256 _amount
-//     ) external returns (address);
-// }

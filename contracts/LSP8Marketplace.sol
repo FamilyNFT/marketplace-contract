@@ -27,6 +27,21 @@ contract LSP8Marketplace is
     LSP8MarketplaceTrade,
     LSP8MarketplaceEscrow
 {
+    // -------ADMIN FUNCTIONALITY + TREASURY
+    address owner;
+    address private TREASURY;
+
+    function setTreasury(address _treasury) public {
+        require(msg.sender == owner);
+        TREASURY = _treasury;
+    }
+
+    // maybe best to have owner == treasury multisig, as owner can change treasury
+    constructor() {
+        owner = msg.sender;
+        TREASURY = msg.sender; //<< ?? see comment above
+    }
+
     // --- User Functionality.
 
     /**
@@ -152,74 +167,108 @@ contract LSP8Marketplace is
         return escrowId;
     }
 
-    // ------ESCROW FUNCTIONALITY
+    // --------ALTERNATIVE TRANSFER FUNCTIONS: Triggered by Buyer Only
 
-    // ----if both parties report success, assets can be sent
-    function reportDeliverySuccess(
-        uint256 escId
-    ) public exists(escId) itemIsOpen(escId) isbuyerOrSeller(escId) {
-        _reportDeliverySuccess(escId);
-    }
-
-    // ----if one party reports disputed, the item is disputed
-    // ----if two parties report disputed, a countdown starts to withhold
-    function reportDispute(
-        uint256 escId
-    ) public exists(escId) itemIsOpen(escId) isbuyerOrSeller(escId) {
-        _reportDispute(escId);
-    }
-
-    // ----if both parties report withdrawn, assets can be returned
-    function reportWithdrawn(
-        uint256 escId
-    ) public exists(escId) itemIsOpen(escId) isbuyerOrSeller(escId) {
-        _reportWithdrawn(escId);
-    }
-
-    /**
-     * Called by buyer or seller once escrow has concluded.
-     * Checks escrowStatus and if SUCCESS, transfers LSP8 to buyer and LYX to seller,
-     * if WITHDRAWN transfers LSP8 to seller and LYX to buyer. For other escrowStatus
-     * the call will revert.
-     */
-    function transferAssetsLSP8LYX(
-        uint256 escId
-    ) public payable exists(escId) itemIsOpen(escId) isbuyerOrSeller(escId) {
+    // buyer confirms receipt
+    // LSP8 is sent to buyer
+    // LYX is sent to seller
+    function confirmReceipt(uint256 escId) public exists(escId) {
         EscrowItem memory item = _getEscrowItem(escId);
-        require(
-            getEscrowStatus(escId) == status.SUCCESS,
-            "Both parties must agree on success before transfer."
-        );
-        if (item.escrowStatus == status.SUCCESS) {
-            //transfer LSP8
-            _transferLSP8(
-                item.LSP8Collection,
-                address(this),
-                item.buyer,
-                item.tokenId,
-                true,
-                1
-            ); // <<TODO: force=false outside of hardhat
-            //transfer LYX
-            uint256 sellerLYX = ((item.amount) * 90) / 100;
-            uint256 royaltyLYX = ((item.amount) * 10) / 100;
-            payable(item.buyer).transfer(sellerLYX);
-            payable(item.OGminter).transfer(royaltyLYX);
 
-            // update item and Escrow state variables
-            _closeItem(escId);
-            // escrowBalance -= items[escId].amount;
-            escrowBalance -= msg.value;
-            totalConfirmed++;
+        require(msg.sender == item.buyer, "You are not buyer of this item.");
+        require(item.balance > 0, "Assets have already been claimed.");
+        // require(item.Status != 4, "You have already claimed your asset.");
 
-            emit Transfer("LSP8 sent to new owner.", address(this), 1, ""); // Todo: "value"=msg.value?
-            emit Transfer("LYX sent to seller.", address(this), sellerLYX, "");
-            emit Transfer(
-                "Royalty sent to Minter.",
-                address(this),
-                royaltyLYX,
-                ""
-            );
-        }
+        //transfer LSP8
+        _transferLSP8(
+            item.LSP8Collection,
+            address(this),
+            item.buyer,
+            item.tokenId,
+            true,
+            1
+        ); // <<TODO: force=false outside of hardhat
+
+        //transfer LYX
+        uint256 sellerLYX = ((item.balance) * 90) / 100;
+        uint256 royaltyLYX = ((item.balance) * 10) / 100;
+        payable(item.seller).transfer(sellerLYX);
+        payable(item.OGminter).transfer(royaltyLYX);
+
+        //emit Events
+        emit Transfer("LSP8 sent to new owner.", address(this), 1, ""); // Todo: "value"=msg.value?
+        emit Transfer("LYX sent to seller.", address(this), sellerLYX, "");
+        emit Transfer("Royalty sent to Minter.", address(this), royaltyLYX, "");
+
+        //close EscrowItem
+        escrowBalance -= item.balance;
+        totalConfirmed++;
+        _closeItemRemoveBalance(escId);
+    }
+
+    // seller confirms receipt
+    // LSP8 is returned to seller
+    // LYX is returned to buyer
+    function reportWithdraw(uint256 escId) public exists(escId) {
+        EscrowItem memory item = _getEscrowItem(escId);
+
+        require(msg.sender == item.seller, "You are not seller of this item.");
+        require(item.balance > 0, "Assets have already been claimed.");
+        // require(item.Status != 4, "You have already claimed your asset.");
+
+        //return LSP8
+        _transferLSP8(
+            item.LSP8Collection,
+            address(this),
+            item.seller,
+            item.tokenId,
+            true,
+            1
+        ); // <<TODO: force=false outside of hardhat
+
+        //return LYX
+        payable(item.buyer).transfer(item.balance);
+
+        //emit Events
+        emit Transfer("LSP8 returned seller.", address(this), 1, "");
+        emit Transfer("LYX returned to buyer", address(this), item.balance, "");
+
+        //close EscrowItem
+        escrowBalance -= item.balance;
+        totalConfirmed++;
+        _closeItemRemoveBalance(escId);
+    }
+
+    // buyer raises dispute
+    // LSP8 is forwarded to FamilyTreasury
+    // LYX is is forwarded to FamilyTreasury
+    function reportDispute(uint256 escId) public exists(escId) {
+        EscrowItem memory item = _getEscrowItem(escId);
+
+        require(msg.sender == item.buyer, "You are not buyer of this item.");
+        require(item.balance > 0, "Assets have already been claimed.");
+        // require(item.Status != 4, "You have already claimed your asset.");
+
+        //return LSP8
+        _transferLSP8(
+            item.LSP8Collection,
+            address(this),
+            TREASURY,
+            item.tokenId,
+            true,
+            1
+        ); // <<TODO: force=false outside of hardhat
+
+        //return LYX
+        payable(TREASURY).transfer(item.balance);
+
+        //emit Events
+        emit Transfer("LSP8 sent to Treasury.", address(this), 1, "");
+        emit Transfer("LYX sent to Treasury", address(this), item.balance, "");
+
+        //close EscrowItem
+        escrowBalance -= item.balance;
+        totalDisputed++; //
+        _closeItemRemoveBalance(escId);
     }
 }
