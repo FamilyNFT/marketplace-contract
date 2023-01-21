@@ -1,29 +1,120 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
-const hre = require("hardhat");
+const hre = require('hardhat')
+const { ethers, network } = require('hardhat')
 
-async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
-
-  const lockedAmount = hre.ethers.utils.parseEther("1");
-
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log("Lock with 1 ETH deployed to:", lock.address);
+// returns a bytes32 tokenId
+function tokenId(id) {
+    return ethers.utils.hexZeroPad(ethers.utils.hexlify(id), 32)
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
+//  ---MINT NFTs for minter and minter1
+async function mintNFTs() {
+    // mint 3 NFTs for minter
+    await family.mint(minter.address, '')
+    await family.mint(minter.address, '')
+    await family.mint(minter.address, '')
+
+    // mint 2 NFTs for minter1
+    await family.connect(deployer).mint(minter1.address, '')
+    await family.connect(deployer).mint(minter1.address, '')
+
+    console.log('Total NFTs minted =', await family.totalSupply())
+    console.log('-------')
+    console.log('Minter balance =', await family.getBalanceof(minter.address))
+    console.log('Minter1 balance =', await family.getBalanceof(minter1.address))
+}
+
+// ---DEPLOY CONTRACTS
+async function main() {
+    const [deployer, minter1, minter2, buyer, attacker] =
+        await ethers.getSigners()
+    dplr = deployer.address
+    m1 = minter1.address
+    m2 = minter2.address
+    buyr = buyer.address
+    atkr = attacker.address
+
+    let PRICE = 100 // consider WEI vs ETH issue, what is this on LYX?
+    let LYX_ONLY = [true, false, false]
+    let escrowId
+
+    const FAMILY = await hre.ethers.getContractFactory('FamilyNft')
+    const family = await FAMILY.deploy()
+    await family.deployed()
+    console.log('\n', 'FamilyNft deployed to:', family.address)
+
+    const MARKETPLACE = await hre.ethers.getContractFactory('LSP8Marketplace')
+    const marketplace = await MARKETPLACE.deploy()
+    await marketplace.deployed()
+    console.log('Marketplace deployed to:', marketplace.address)
+    console.log('Deployer: ', await family.owner())
+
+    // ---MINT NFTs for minter and minter1
+
+    // mint 2 NFTs for minter1
+    await family.mint(m1, '')
+    await family.mint(m1, '')
+    await family.mint(m1, '')
+
+    // mint 2 NFTs for minter2
+    await family.mint(m2, '')
+    await family.mint(m2, '')
+
+    console.log('Total NFTs minted =', (await family.totalSupply()).toNumber())
+    console.log('minter1 balance =', (await family.balanceOf(m1)).toNumber())
+    console.log('minter2 balance =', (await family.balanceOf(m2)).toNumber())
+    console.log('-------')
+
+    // ---Place NFTs on sale (minter 1)
+    console.log('Listing NFT for sale...')
+    await family
+        .connect(minter1)
+        .authorizeOperator(marketplace.address, tokenId(0))
+    console.log('...Marketplace authorized to transfer NFT')
+    await marketplace
+        .connect(minter1)
+        .putLSP8OnSale(family.address, tokenId(0), PRICE, LYX_ONLY)
+    console.log('...NFT [0] listed for sale!')
+    console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
+    console.log('-------')
+
+    // ---Buyer purchases NFT[0], assets sent to Escrow
+    console.log('Making offer of', PRICE, 'for NFT[0]...')
+    await marketplace
+        .connect(buyer)
+        .buyLSP8WithLYX(family.address, tokenId(0), {
+            value: PRICE,
+        })
+    console.log('...Success! Token [0] transferred to marketplace Escrow')
+    console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
+    console.log(
+        '...checking escrow balance:',
+        (await marketplace.getBalance()).toNumber()
+    )
+    console.log(
+        '...Your escrowId is',
+        (
+            await marketplace.getItemIdOfToken(family.address, tokenId(0))
+        ).toNumber()
+    )
+    console.log('...seller has been notified')
+    console.log('...upon receipt, please call confirmReceipt()')
+    console.log('-------')
+
+    // ---after successful delivery, buyer call  and funds transferred
+    console.log('Item received. Buyer scans NFC tag and calls SUCCESS...')
+    await marketplace.connect(buyer).confirmReceipt(0)
+    console.log('...Success! Token [0] transferred to buyer')
+    console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
+
+    provider = ethers.provider
+    balance = await provider.getBalance(m1)
+    console.log('...checking minter balance:', balance.toString())
+    console.log('...checking reclaim attempt:')
+    // await marketplace.connect(buyer).confirmReceipt(0)
+    console.log('-------')
+}
+
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+    console.error(error)
+    process.exitCode = 1
+})
