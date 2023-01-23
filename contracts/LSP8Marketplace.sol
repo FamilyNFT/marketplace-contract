@@ -32,7 +32,7 @@ contract LSP8Marketplace is
     address private TREASURY;
 
     function setTreasury(address _treasury) public {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "Unauthorised.");
         TREASURY = _treasury;
     }
 
@@ -131,7 +131,6 @@ contract LSP8Marketplace is
         payable
         sendEnoughLYX(LSP8Address, tokenId)
         LSP8OnSale(LSP8Address, tokenId)
-        returns (uint256)
     {
         address LSP8Owner = (
             ILSP8IdentifiableDigitalAsset(LSP8Address).tokenOwnerOf(tokenId)
@@ -143,15 +142,9 @@ contract LSP8Marketplace is
         _removeLSP8Sale(LSP8Address, tokenId);
 
         // set up escrow
-        uint256 escrowId = _newEscrowItem(
-            LSP8Address,
-            tokenId,
-            LSP8Owner,
-            msg.sender,
-            amount
-        );
+        _newEscrowItem(LSP8Address, tokenId, LSP8Owner, msg.sender, amount);
 
-        // escrow in marketplace contract
+        // send LSP8 to marketplace
         _transferLSP8(
             LSP8Address,
             LSP8Owner,
@@ -161,23 +154,24 @@ contract LSP8Marketplace is
             1
         ); // <<< TODO: force should be false outside of hardhat
 
+        // send LSP8 value in LYX to marketplace
         payable(address(this)).transfer(msg.value);
-
-        // return escrow id to front end
-        return escrowId;
     }
 
-    // --------ALTERNATIVE TRANSFER FUNCTIONS: Triggered by Buyer Only
-
-    // buyer confirms receipt
-    // LSP8 is sent to buyer
-    // LYX is sent to seller
-    function confirmReceipt(uint256 escId) public exists(escId) {
+    /**
+     * Buyer confirms receipt of IRL item and releases digital assets.
+     * Sends LSP8 to buyer and LYX to seller, including sending
+     * 10% of sale value to the original minter.
+     *
+     * @param escId unique escrow ID for the sale.
+     *
+     * @notice For information about `itemExists` modifier and about `_getEscrowItem` and `_closeItemRemoveBalance` functions check the LSP8MarketplaceEscrow smart contract.
+     */
+    function confirmReceipt(uint256 escId) public itemExists(escId) {
         EscrowItem memory item = _getEscrowItem(escId);
 
         require(msg.sender == item.buyer, "You are not buyer of this item.");
         require(item.balance > 0, "Assets have already been claimed.");
-        // require(item.Status != 4, "You have already claimed your asset.");
 
         //transfer LSP8
         _transferLSP8(
@@ -196,9 +190,9 @@ contract LSP8Marketplace is
         payable(item.OGminter).transfer(royaltyLYX);
 
         //emit Events
-        emit Transfer("LSP8 sent to new owner.", address(this), 1, ""); // Todo: "value"=msg.value?
+        emit Transfer("LSP8 sent to new owner.", address(this), 1, "");
         emit Transfer("LYX sent to seller.", address(this), sellerLYX, "");
-        emit Transfer("Royalty sent to Minter.", address(this), royaltyLYX, "");
+        emit Transfer("Royalty sent to minter.", address(this), royaltyLYX, "");
 
         //close EscrowItem
         escrowBalance -= item.balance;
@@ -206,15 +200,19 @@ contract LSP8Marketplace is
         _closeItemRemoveBalance(escId);
     }
 
-    // seller confirms receipt
-    // LSP8 is returned to seller
-    // LYX is returned to buyer
-    function reportWithdraw(uint256 escId) public exists(escId) {
+    /**
+     * Seller withdraws sale and releases digital assets.
+     * Returns LSP8 to seller and LYX to buyer.
+     *
+     * @param escId unique escrow ID for the sale.
+     *
+     * @notice For information about `itemExists` modifier and about `_getEscrowItem` and `_closeItemRemoveBalance` functions check the LSP8MarketplaceEscrow smart contract.
+     */
+    function reportWithdraw(uint256 escId) public itemExists(escId) {
         EscrowItem memory item = _getEscrowItem(escId);
 
         require(msg.sender == item.seller, "You are not seller of this item.");
         require(item.balance > 0, "Assets have already been claimed.");
-        // require(item.Status != 4, "You have already claimed your asset.");
 
         //return LSP8
         _transferLSP8(
@@ -239,17 +237,21 @@ contract LSP8Marketplace is
         _closeItemRemoveBalance(escId);
     }
 
-    // buyer raises dispute
-    // LSP8 is forwarded to FamilyTreasury
-    // LYX is is forwarded to FamilyTreasury
-    function reportDispute(uint256 escId) public exists(escId) {
+    /**
+     * Buyer reports an issue which cannot be resolved with the seller.
+     * Digital assets are withheld and sent to the Treasury address.
+     *
+     * @param escId unique escrow ID for the sale.
+     *
+     * @notice For information about `itemExists` modifier and about `_getEscrowItem` and `_closeItemRemoveBalance` functions check the LSP8MarketplaceEscrow smart contract.
+     */
+    function reportDispute(uint256 escId) public itemExists(escId) {
         EscrowItem memory item = _getEscrowItem(escId);
 
         require(msg.sender == item.buyer, "You are not buyer of this item.");
         require(item.balance > 0, "Assets have already been claimed.");
-        // require(item.Status != 4, "You have already claimed your asset.");
 
-        //return LSP8
+        //withhold LSP8
         _transferLSP8(
             item.LSP8Collection,
             address(this),
@@ -259,7 +261,7 @@ contract LSP8Marketplace is
             1
         ); // <<TODO: force=false outside of hardhat
 
-        //return LYX
+        //withhold LYX
         payable(TREASURY).transfer(item.balance);
 
         //emit Events
@@ -268,7 +270,7 @@ contract LSP8Marketplace is
 
         //close EscrowItem
         escrowBalance -= item.balance;
-        totalDisputed++; //
+        totalDisputed++;
         _closeItemRemoveBalance(escId);
     }
 }

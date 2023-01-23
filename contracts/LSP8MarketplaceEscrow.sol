@@ -28,64 +28,6 @@ contract LSP8MarketplaceEscrow {
     mapping(uint256 => address) public ownerOf;
     mapping(address => mapping(bytes32 => uint256)) public escrowIdOfToken;
 
-    // ----TESTING FUNCTIONS
-    function _getEscrowItem(
-        uint256 escId
-    ) internal view returns (EscrowItem memory) {
-        return items[escId];
-    }
-
-    function _closeItemRemoveBalance(uint256 escId) internal {
-        items[escId].escrowStatus = status.CLOSED;
-        items[escId].balance = 0;
-    }
-
-    function getItemIdOfToken(
-        address LSP8,
-        bytes32 tokenId
-    ) public view returns (uint256) {
-        return escrowIdOfToken[LSP8][tokenId];
-    }
-
-    function getBalance() public view returns (uint256) {
-        return escrowBalance;
-    }
-
-    function getTotalItems() public view returns (uint256) {
-        return totalItems;
-    }
-
-    function getBuyerSeller(
-        uint256 escId
-    ) public view returns (address[2] memory) {
-        return [items[escId].buyer, items[escId].seller];
-    }
-
-    function getEscrowStatus(
-        uint256 escId
-    ) public view exists(escId) returns (status) {
-        // ) internal view exists(escId) returns (status) {
-        return items[escId].escrowStatus;
-    }
-
-    function _setUserStatus(
-        uint256 escId,
-        status newStatus
-    ) internal exists(escId) {
-        if (msg.sender == items[escId].buyer) {
-            items[escId].buyerStatus = newStatus;
-        } else if (msg.sender == items[escId].seller) {
-            items[escId].sellerStatus = newStatus;
-        }
-    }
-
-    function _setEscrowStatus(
-        uint256 escId,
-        status newStatus
-    ) internal exists(escId) {
-        items[escId].escrowStatus = newStatus;
-    }
-
     struct EscrowItem {
         address LSP8Collection;
         bytes32 tokenId;
@@ -95,9 +37,7 @@ contract LSP8MarketplaceEscrow {
         address OGminter;
         uint256 timestamp;
         status escrowStatus;
-        status buyerStatus;
-        status sellerStatus; //  what's the point in this? Surely only buy-side matters?
-        uint256 escrowId; // is this required, or is it given in mapping?
+        uint256 escrowId;
     }
 
     enum status {
@@ -109,32 +49,25 @@ contract LSP8MarketplaceEscrow {
     }
 
     fallback() external payable {
-        // emit Transfer("fallback", msg.sender, msg.value, msg.data); << add back in once data confirmed
+        emit Transfer("fallback", msg.sender, msg.value, msg.data);
     }
 
     receive() external payable {
-        // emit Transfer("receive", msg.sender, msg.value, bytes("")); << add back in once data confirmed
+        emit Transfer("receive", msg.sender, msg.value, bytes(""));
     }
 
     event Transfer(string func, address sender, uint256 value, bytes data); // what data?
     event Action(string func, address sender, bytes data); // what data?
 
-    modifier exists(uint256 escId) {
+    modifier itemExists(uint256 escId) {
         require(items[escId].timestamp != 0, "Escrow item does not exist.");
         _;
     }
+
     modifier itemIsOpen(uint256 escId) {
         require(
             items[escId].escrowStatus != status.CLOSED,
             "Escrow item has been closed."
-        );
-        _;
-    }
-    modifier isbuyerOrSeller(uint256 escId) {
-        require(
-            msg.sender == items[escId].buyer ||
-                msg.sender == items[escId].seller,
-            "You are not buyer or seller of this item."
         );
         _;
     }
@@ -149,8 +82,6 @@ contract LSP8MarketplaceEscrow {
      * @param buyer Address of the LSP8 receiver (aka to).
      * @param amount Sale price of asset.
      *
-     * @return address returns address(this) to receive escrowed LSP8 asset
-     *
      * @notice this method can only be called once Buyer commits LYX payment
      */
     function _newEscrowItem(
@@ -159,7 +90,7 @@ contract LSP8MarketplaceEscrow {
         address seller,
         address buyer,
         uint256 amount
-    ) internal returns (uint256) {
+    ) internal {
         uint256 itemId = totalItems++;
 
         EscrowItem storage item = items[itemId];
@@ -171,13 +102,64 @@ contract LSP8MarketplaceEscrow {
         item.balance = amount;
         item.OGminter = IFamilyNft(LSP8Address).getMinter(tokenId);
         item.timestamp = block.timestamp;
-        item.escrowStatus = status.OPEN; // overall esc status
-        item.buyerStatus;
-        item.sellerStatus;
+        item.escrowStatus = status.OPEN;
         item.escrowId = itemId;
 
         escrowBalance += msg.value;
         emit Action("ESCROW ITEM CREATED", buyer, ""); // what data?
-        return item.escrowId;
+    }
+
+    // -----INTERNAL FUNCTIONS
+
+    function _closeItemRemoveBalance(uint256 escId) internal {
+        items[escId].escrowStatus = status.CLOSED;
+        items[escId].balance = 0;
+    }
+
+    function _getEscrowItem(
+        uint256 escId
+    ) internal view itemExists(escId) returns (EscrowItem memory) {
+        return items[escId];
+    }
+
+    // -------TESTING FUNCTIONS-------
+    // -------TESTING FUNCTIONS-------
+    // -------TESTING FUNCTIONS-------
+    // -------TESTING FUNCTIONS-------
+    // -------TESTING FUNCTIONS-------
+    //
+    function getTotalItems() public view returns (uint256) {
+        return totalItems;
+    }
+
+    function getBuyerSeller(
+        uint256 escId
+    ) public view returns (address[2] memory) {
+        return [items[escId].buyer, items[escId].seller];
+    }
+
+    function getBalance() public view returns (uint256) {
+        return escrowBalance;
+    }
+
+    function getItemIdOfToken(
+        address LSP8,
+        bytes32 tokenId
+    ) public view returns (uint256) {
+        return escrowIdOfToken[LSP8][tokenId];
+    }
+
+    function _setEscrowStatus(
+        uint256 escId,
+        status newStatus
+    ) internal itemExists(escId) {
+        items[escId].escrowStatus = newStatus;
+    }
+
+    function getEscrowStatus(
+        uint256 escId
+    ) public view itemExists(escId) returns (status) {
+        // ) internal view exists(escId) returns (status) {
+        return items[escId].escrowStatus;
     }
 }
