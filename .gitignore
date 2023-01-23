@@ -13,3 +13,4 @@ hardhat.config.js
 
 # Build artifacts
 build/
+FamilyNftGenesis.sol

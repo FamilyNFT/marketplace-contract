@@ -93,6 +93,7 @@ async function main() {
 
     console.log('...Success! Token [0] transferred to marketplace Escrow')
     console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
+
     let mp_bal = ethers.utils.formatEther(await marketplace.getBalance())
     let mpcBal = await ethers.provider.getBalance(marketplace.address)
     let m1bal = await ethers.provider.getBalance(m1)
@@ -101,6 +102,7 @@ async function main() {
     console.log('......mPlace balance:', ethers.utils.formatEther(mpcBal))
     console.log('......mint1 balance::', ethers.utils.formatEther(m1bal))
     console.log('......buyer balance:', ethers.utils.formatEther(byrbal))
+
     let e_id = await marketplace.getItemIdOfToken(family.address, tokenId(0))
     console.log('...Your escrowId is', e_id.toNumber())
     console.log('...seller has been notified')
@@ -120,10 +122,10 @@ async function main() {
     // console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
 
     // ---C) buyer suspects it's a scam – buyer calls dispute.
-    console.log('something seems fishy. buyer calls DISPUTE...')
-    await marketplace.connect(buyer).reportDispute(0)
-    console.log('...Success. Assets sent to Family TREASURY')
-    console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
+    // console.log('something seems fishy. buyer calls DISPUTE...')
+    // await marketplace.connect(buyer).reportDispute(0)
+    // console.log('...Confirmed. Assets sent to Family TREASURY')
+    // console.log('...checking owner [0]:', await family.tokenOwnerOf(tokenId(0)))
 
     // ---check balances
     mp_bal = ethers.utils.formatEther(await marketplace.getBalance())
@@ -131,12 +133,32 @@ async function main() {
     m1bal = await ethers.provider.getBalance(m1)
     byrbal = await ethers.provider.getBalance(buyr)
     console.log('......escrow balance:', mp_bal)
-    console.log('......mPlace balance:', mpcBal.toNumber())
+    console.log('......mPlace balance:', ethers.utils.formatEther(mpcBal)) //.toNumber())
     console.log('......mint1 balance::', ethers.utils.formatEther(m1bal))
     console.log('......buyer balance:', ethers.utils.formatEther(byrbal))
-    console.log('...checking reclaim attempt:')
-    await marketplace.connect(buyer).confirmReceipt(0)
+    // console.log('...checking reclaim attempt:')
+    // await marketplace.connect(buyer).confirmReceipt(0)
     console.log('\n-------')
+
+    // ---attacker attempts
+    const mpAdd = marketplace.address
+    const fAdd = family.address
+    console.log('Testing attacker attempts...:')
+    console.log('...on mint LSP8')
+    // await family.connect(attacker).mint(atkr, '')
+
+    console.log('...on sell LSP8')
+    // await marketplace
+    //     .connect(attacker)
+    //     .putLSP8OnSale(fAdd, tokenId(0), PRICE, LYX_ONLY)
+
+    console.log('...to claim escrow LSP8')
+    // await marketplace.connect(attacker).confirmReceipt(0)
+    // await marketplace.connect(attacker).reportWithdraw(0)
+    // await marketplace.connect(attacker).reportDispute(0)
+
+    console.log('...to change Treasury')
+    await marketplace.connect(attacker).setTreasury(atkr)
 }
 
 main().catch((error) => {
